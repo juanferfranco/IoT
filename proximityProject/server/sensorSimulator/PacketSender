@@ -1,0 +1,21 @@
+Dirección de descarga: https://packetsender.com/download
+Paquetes a crear son:
+
+1. Paquete activación zona:
+Name: Zona ON
+ASCII: {"zone":1,"state":"on"}
+IP: 10.38.28.120(LA PROPIA IP) 
+PORT: 8125
+SELECCIONAR TCP
+SAVE
+
+2. Paquete desactivación zona:
+Name: Zona OFF
+ASCII: {"zone":1,"state":"off"}
+IP: 10.38.28.120(LA PROPIA IP) 
+PORT: 8125
+SELECCIONAR TCP
+SAVE
+
+Una vez salvados los paquetes se pueden enviar con click en send.
+
