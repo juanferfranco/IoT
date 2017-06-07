@@ -8,6 +8,8 @@
 #include <DNSServer.h>            //Local DNS Server used for redirecting all requests to the configuration portal
 #include <ESP8266WebServer.h>     //Local WebServer used to serve the configuration portal
 #include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
+#include <EEPROM.h>
+
 
 #define USE_SERIAL Serial
 ESP8266WiFiMulti WiFiMulti;
@@ -25,13 +27,6 @@ char strReq[64] = "http://ensayoerror.pythonanywhere.com/";
 
 
 void setup() {
-  ////////////////////////////////////
-  // Temporal code to test WiFiManager.
-  // Use this code to clear the wifi credentials.
-
-  WiFi.disconnect();
-  delay(1000);
-  ///////////////////////////////////
 
   pinMode(LEDCARD, OUTPUT);
   SPI.begin();      // Init SPI bus
@@ -45,15 +40,28 @@ void setup() {
     USE_SERIAL.flush();
     delay(1000);
   }
-  WiFiManager wifiManager;
-  //WiFiMulti.addAP("UPBWiFi");
-  wifiManager.autoConnect("RFIDTIC");
-
-  USE_SERIAL.println("TEST");
+  setupDevice();
 }
 
 void loop() {
   char strTmp[15];
+
+  if (USE_SERIAL.available() > 0) {
+    uint8_t data = USE_SERIAL.read();
+    if ( data == 'n') {
+      WiFi.disconnect();
+      ESP.reset();
+      delay(2000);
+    }
+    if (data == 'f') {
+      USE_SERIAL.println(ESP.getFreeHeap());
+    }
+    if (data == 'c') {
+      USE_SERIAL.println(F("Reconnecting"));
+      WiFiManager wifiManager;
+      wifiManager.autoConnect("RFIDTIC");
+    }
+  }
 
   if ( ! mfrc522.PICC_IsNewCardPresent()) {
     return;
@@ -75,7 +83,6 @@ void loop() {
 
   USE_SERIAL.println("TEST 2");
 
-
   // wait for WiFi connection
   if ((WiFiMulti.run() == WL_CONNECTED)) {
     HTTPClient http;
@@ -88,8 +95,8 @@ void loop() {
     if (httpCode > 0) {
       // HTTP header has been send and Server response header has been handled
       USE_SERIAL.printf("[HTTP] GET... code: %d\n", httpCode);
-      
-      
+
+
       // file found at server
       if (httpCode == HTTP_CODE_OK) {
         String payload = http.getString();
@@ -99,12 +106,55 @@ void loop() {
       USE_SERIAL.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
     }
     http.end();
-    if(httpCode == HTTP_CODE_OK){
+    if (httpCode == HTTP_CODE_OK) {
       digitalWrite(LEDCARD, HIGH);
       delay(500);
       digitalWrite(LEDCARD, LOW);
       delay(500);
     }
+  }
+  else{
+    USE_SERIAL.println("WiFi disconnected");
+  }
+}
+
+void setupDevice() {
+  char deviceName[15] = {0};
+  WiFiManager wifiManager;
+  EEPROM.begin(16);
+
+  // Is there a device name in EEPROM[0] ? then load wifiManager's device name
+  uint8_t value = EEPROM.read(0);
+  if (value == '1') {
+    USE_SERIAL.println(F("Read EEROM data"));
+    uint8_t address = 0;
+    while (true) {
+      value = EEPROM.read(address + 1);
+      if (value != 0) {
+        deviceName[address] = value;
+        address++;
+      }
+      else break;
+    }
+    deviceName[address] = 0;
+    wifiManager.initDeviceName(deviceName);
+  }
+
+  wifiManager.autoConnect("RFIDTIC");
+  USE_SERIAL.println(wifiManager.getDeviceName());
+  
+  if (wifiManager.hasDeviceName() == true) {
+    USE_SERIAL.println(F("Write EEROM data"));
+    EEPROM.write(0, '1'); // Indicate that there is name stored
+    char* pname = wifiManager.getDeviceName();
+    uint8_t address = 0;
+    while (pname[address] != 0) {
+      EEPROM.write(address + 1, pname[address]);
+      address++;
+    }
+    EEPROM.write(address+1, 0);
+    EEPROM.commit();
+    delay(100);
   }
 }
 
