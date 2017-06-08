@@ -25,6 +25,8 @@ MFRC522 mfrc522(SS_PIN, RST_PIN); // Create MFRC522 instance
 #define INITPAYLOAD 38  // WARNING!!!!!!!! Adjust this constant to point at the end of strReq (just after '/')
 char strReq[64] = "http://ensayoerror.pythonanywhere.com/";
 
+String ssid = "";
+String pass = "";
 
 void setup() {
 
@@ -40,8 +42,9 @@ void setup() {
     USE_SERIAL.flush();
     delay(1000);
     }*/
-
   setupDevice();
+  ssid = WiFi.SSID();
+  pass = WiFi.psk();
 }
 
 void loop() {
@@ -65,7 +68,8 @@ void loop() {
     if (data == 's') {
       USE_SERIAL.println(F("SSID info"));
       USE_SERIAL.println(WiFi.SSID());
-    }    
+      USE_SERIAL.println(WiFi.psk());
+    }
   }
 
   if ( ! mfrc522.PICC_IsNewCardPresent()) {
@@ -85,8 +89,6 @@ void loop() {
   mfrc522.PICC_HaltA();
   // Stop encryption on PCD
   mfrc522.PCD_StopCrypto1();
-
-  USE_SERIAL.println("TEST 2");
 
   // wait for WiFi connection
   if ((WiFiMulti.run() == WL_CONNECTED)) {
@@ -120,11 +122,7 @@ void loop() {
   }
   else {
     USE_SERIAL.println("WiFi disconnected");
-    if (WiFi.SSID()) {
-      WiFi.begin();
-    } else {
-      USE_SERIAL.println("No saved credentials");
-    }
+    WiFi.begin(ssid.c_str(),pass.c_str());
     int connRes = WiFi.waitForConnectResult();
     USE_SERIAL.println ("Connection result: ");
     USE_SERIAL.println ( connRes );
