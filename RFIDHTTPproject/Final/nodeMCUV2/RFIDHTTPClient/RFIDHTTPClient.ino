@@ -7,7 +7,7 @@
 
 #include <DNSServer.h>            //Local DNS Server used for redirecting all requests to the configuration portal
 #include <ESP8266WebServer.h>     //Local WebServer used to serve the configuration portal
-#include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
+#include "WiFiManager.h"          //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 #include <EEPROM.h>
 
 
@@ -33,13 +33,14 @@ void setup() {
   mfrc522.PCD_Init();   // Init MFRC522
   USE_SERIAL.begin(115200);
   USE_SERIAL.println();
-  USE_SERIAL.println();
-  USE_SERIAL.println();
-  for (uint8_t t = 4; t > 0; t--) {
+
+  /*
+    for (uint8_t t = 4; t > 0; t--) {
     USE_SERIAL.printf("[SETUP] WAIT %d...\n", t);
     USE_SERIAL.flush();
     delay(1000);
-  }
+    }*/
+
   setupDevice();
 }
 
@@ -61,6 +62,10 @@ void loop() {
       WiFiManager wifiManager;
       wifiManager.autoConnect("RFIDTIC");
     }
+    if (data == 's') {
+      USE_SERIAL.println(F("SSID info"));
+      USE_SERIAL.println(WiFi.SSID());
+    }    
   }
 
   if ( ! mfrc522.PICC_IsNewCardPresent()) {
@@ -113,8 +118,17 @@ void loop() {
       delay(500);
     }
   }
-  else{
+  else {
     USE_SERIAL.println("WiFi disconnected");
+    if (WiFi.SSID()) {
+      WiFi.begin();
+    } else {
+      USE_SERIAL.println("No saved credentials");
+    }
+    int connRes = WiFi.waitForConnectResult();
+    USE_SERIAL.println ("Connection result: ");
+    USE_SERIAL.println ( connRes );
+
   }
 }
 
@@ -142,7 +156,7 @@ void setupDevice() {
 
   wifiManager.autoConnect("RFIDTIC");
   USE_SERIAL.println(wifiManager.getDeviceName());
-  
+
   if (wifiManager.hasDeviceName() == true) {
     USE_SERIAL.println(F("Write EEROM data"));
     EEPROM.write(0, '1'); // Indicate that there is name stored
@@ -152,7 +166,7 @@ void setupDevice() {
       EEPROM.write(address + 1, pname[address]);
       address++;
     }
-    EEPROM.write(address+1, 0);
+    EEPROM.write(address + 1, 0);
     EEPROM.commit();
     delay(100);
   }
