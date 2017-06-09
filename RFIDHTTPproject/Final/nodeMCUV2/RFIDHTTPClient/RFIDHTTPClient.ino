@@ -1,7 +1,6 @@
 #include <Arduino.h>
 
 #include <ESP8266WiFi.h>
-#include <ESP8266WiFiMulti.h>
 #include <ESP8266HTTPClient.h>
 #include <MFRC522.h>
 
@@ -10,9 +9,7 @@
 #include "WiFiManager.h"          //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 #include <EEPROM.h>
 
-
 #define USE_SERIAL Serial
-ESP8266WiFiMulti WiFiMulti;
 
 #define RST_PIN  5 // RST-PIN for RC522 - RFID - SPI - Modul GPIO5 
 #define SS_PIN  4 // SDA-PIN for RC522 - RFID - SPI - Modul GPIO4 
@@ -66,9 +63,12 @@ void loop() {
       wifiManager.autoConnect("RFIDTIC");
     }
     if (data == 's') {
-      USE_SERIAL.println(F("SSID info"));
-      USE_SERIAL.println(WiFi.SSID());
+      USE_SERIAL.print(F("SSID info: "));
+      USE_SERIAL.print(WiFi.SSID());
       USE_SERIAL.println(WiFi.psk());
+      USE_SERIAL.print(F("SSID saved: "));
+      USE_SERIAL.print(ssid.c_str());
+      USE_SERIAL.println(pass.c_str());
     }
   }
 
@@ -91,9 +91,8 @@ void loop() {
   mfrc522.PCD_StopCrypto1();
 
   // wait for WiFi connection
-  if ((WiFiMulti.run() == WL_CONNECTED)) {
+  if ((WiFi.status() == WL_CONNECTED)) {
     HTTPClient http;
-
     USE_SERIAL.println("Sending UID");
     http.begin(strReq);
     USE_SERIAL.print("[HTTP] GET...\n");
@@ -102,8 +101,6 @@ void loop() {
     if (httpCode > 0) {
       // HTTP header has been send and Server response header has been handled
       USE_SERIAL.printf("[HTTP] GET... code: %d\n", httpCode);
-
-
       // file found at server
       if (httpCode == HTTP_CODE_OK) {
         String payload = http.getString();
@@ -122,10 +119,10 @@ void loop() {
   }
   else {
     USE_SERIAL.println("WiFi disconnected");
-    WiFi.begin(ssid.c_str(),pass.c_str());
-    int connRes = WiFi.waitForConnectResult();
-    USE_SERIAL.println ("Connection result: ");
-    USE_SERIAL.println ( connRes );
+    //WiFi.begin(ssid.c_str(),pass.c_str());
+    //int connRes = WiFi.waitForConnectResult();
+    //USE_SERIAL.println ("Connection result: ");
+    //USE_SERIAL.println ( connRes );
 
   }
 }
