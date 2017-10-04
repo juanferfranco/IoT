@@ -16,15 +16,17 @@ void setup() {
     delay(500);
     Serial.print(".");
   }
-  Serial.println("");
-  Serial.println("WiFi connected");
-  Serial.println("IP address: ");
-  Serial.println(WiFi.localIP());
 }
 
 void loop() {
   if (Serial.available()) {
     char data = (char)Serial.read();
+    if (data == 'i') {
+      Serial.println("");
+      Serial.println("WiFi connected");
+      Serial.println("IP address: ");
+      Serial.println(WiFi.localIP());
+    }
     Serial.print("connecting to ");
     Serial.println(host);
     WiFiClient client;
