@@ -1,7 +1,8 @@
 #include <MFRC522.h>
 
-#define RST_PIN  5 // RST-PIN for RC522 - RFID - SPI - Modul GPIO5 
-#define SS_PIN  4 // SDA-PIN for RC522 - RFID - SPI - Modul GPIO4 
+#define RST_PIN  D1 // RST-PIN for RC522 - RFID - SPI - Modul GPIO5: 5 
+#define SS_PIN  D2 // SDA-PIN for RC522 - RFID - SPI - Modul GPIO4: 4
+#define LED_RFID D8 // LED RFID read 
 
 MFRC522 mfrc522(SS_PIN, RST_PIN); // Create MFRC522 instance
 
@@ -39,11 +40,11 @@ void dump_byte_array(byte *buffer, byte bufferSize) {
 */
 
 void setup() {
-  Serial.begin(9600); // Initialize serial communications with the PC
+  Serial.begin(115200); // Initialize serial communications with the PC
   SPI.begin();      // Init SPI bus
   mfrc522.PCD_Init();   // Init MFRC522
   Serial.println("Scan PICC to see UID and type...");
-  pinMode(15,OUTPUT);
+  pinMode(LED_RFID,OUTPUT);
 }
 
 void loop() {
@@ -62,9 +63,9 @@ void loop() {
   mfrc522.PICC_HaltA();
   // Stop encryption on PCD
   mfrc522.PCD_StopCrypto1();
-  digitalWrite(15,HIGH);
+  digitalWrite(LED_RFID,HIGH);
   delay(500);
-  digitalWrite(15,LOW);
+  digitalWrite(LED_RFID,LOW);
   delay(500);  
 }
 
