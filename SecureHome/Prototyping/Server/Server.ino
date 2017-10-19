@@ -42,7 +42,7 @@ void setup() {
   server.setNoDelay(true);
   Serial.print("Ready! Use 'telnet ");
   Serial.print(WiFi.localIP());
-  Serial.println(" 23' to connect");
+  Serial.println(" 3000' to connect");
 }
 
 void loop() {
@@ -63,16 +63,16 @@ void processDataFromClients() {
           Serial.print("SENSOR TYPE: ");
           Serial.println(message[SENSORTYPE]);
           Serial.print("SENSOR STATE: ");
-          Serial.println(message[SENSORSTATE]);
+          Serial.write(message[SENSORSTATE]);
+          Serial.println();
           Serial.print("UID: ");
-          Serial.print(message[UID_BYTE7]);
-          Serial.print(message[UID_BYTE6]);
-          Serial.print(message[UID_BYTE5]);
-          Serial.print(message[UID_BYTE4]);
-          Serial.print(message[UID_BYTE3]);
-          Serial.print(message[UID_BYTE2]);
-          Serial.print(message[UID_BYTE1]);
-          Serial.println(message[UID_BYTE0]);
+          Serial.print(message[UID_BYTE3],HEX);
+          Serial.print(':');
+          Serial.print(message[UID_BYTE2],HEX);
+          Serial.print(':');
+          Serial.print(message[UID_BYTE1],HEX);
+          Serial.print(':');
+          Serial.println(message[UID_BYTE0],HEX);
         }
       }
     }
