@@ -26,7 +26,22 @@ WiFiClient serverClients[MAX_SRV_CLIENTS];
 void processDataFromClients();
 void checkNewClients();
 
+#define LED_WIFI D0
+#define LED_CLIENTWINDOW D1
+#define LED_CLIENTDOOR D2
+
+#define APPROVEKEYSNUMBER 2
+uint8_t approvedKeys[APPROVEKEYSNUMBER][4] = {{0xB6, 0x5A, 0x11, 0x9E}, {0xFF, 0xFF, 0xFF, 0xFF}};
+
 void setup() {
+  pinMode(LED_WIFI, OUTPUT);
+  pinMode(LED_CLIENTWINDOW, OUTPUT);
+  pinMode(LED_CLIENTDOOR, OUTPUT);
+  digitalWrite(LED_WIFI, LOW);
+  digitalWrite(LED_CLIENTWINDOW, LOW);
+  digitalWrite(LED_CLIENTDOOR, LOW);
+
+
   Serial.begin(115200);
   WiFi.begin(ssid, password);
   Serial.print("\nConnecting to ");
@@ -37,6 +52,8 @@ void setup() {
     Serial.print("Could not connect to"); Serial.println(ssid);
     while (1) delay(500);
   }
+  digitalWrite(LED_WIFI, HIGH);
+  Serial.println("WiFi connected");
   //start UART and the server
   server.begin();
   server.setNoDelay(true);
@@ -59,20 +76,43 @@ void processDataFromClients() {
           for (uint8_t j  = 0; j < MESSAGESIZE; j++) {
             message[j] = serverClients[i].read();
           }
-          
+
           Serial.print("SENSOR TYPE: ");
-          Serial.println(message[SENSORTYPE]);
+          if (message[SENSORTYPE] == 'd') {
+            Serial.println("Door Sensor");
+            for (uint8_t key = 0; key < APPROVEKEYSNUMBER; key++) {
+              if (!(message[UID_BYTE3] == approvedKeys[key][0])) {
+                continue;
+              }
+              if (!(message[UID_BYTE2] == approvedKeys[key][1])) {
+                continue;
+              }
+              if (!(message[UID_BYTE1] == approvedKeys[key][2])) {
+                continue;
+              }
+              if (!(message[UID_BYTE0] == approvedKeys[key][3])) {
+                continue;
+              }
+              Serial.println("Open Door");
+              serverClients[i].write('o');
+            }
+          }
+          
+          if (message[SENSORTYPE] == 'w') {
+            Serial.println("Window Sensor");
+          }
+
           Serial.print("SENSOR STATE: ");
           Serial.write(message[SENSORSTATE]);
           Serial.println();
           Serial.print("UID: ");
-          Serial.print(message[UID_BYTE3],HEX);
+          Serial.print(message[UID_BYTE3], HEX);
           Serial.print(':');
-          Serial.print(message[UID_BYTE2],HEX);
+          Serial.print(message[UID_BYTE2], HEX);
           Serial.print(':');
-          Serial.print(message[UID_BYTE1],HEX);
+          Serial.print(message[UID_BYTE1], HEX);
           Serial.print(':');
-          Serial.println(message[UID_BYTE0],HEX);
+          Serial.println(message[UID_BYTE0], HEX);
         }
       }
     }

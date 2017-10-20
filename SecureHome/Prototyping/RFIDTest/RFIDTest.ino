@@ -50,6 +50,7 @@ MFRC522 mfrc522(SS_PIN, RST_PIN); // Create MFRC522 instance
 void readSensorRFID();
 void readServerCommands();
 void sendStatusToServer();
+void printHex(uint8_t *, uint8_t);
 
 void setup() {
   pinMode(LED_WIFI, OUTPUT);
@@ -68,7 +69,7 @@ void setup() {
   SERIAL_DEBUG.println("SPI done ");
   SERIAL_DEBUG.println("Init RFID sensor ");
   mfrc522.PCD_Init();   // Init MFRC522
-  SERIAL_DEBUG.println("SPI done ");
+  SERIAL_DEBUG.println("Init RFID sensor done ");
 
   pinMode(LED_RFID, OUTPUT);
 
@@ -86,8 +87,8 @@ void setup() {
 
 void loop() {
   readSensorRFID();
-  sendStatusToServer();
-  readServerCommands();
+  //sendStatusToServer();
+  //readServerCommands();
 }
 
 void readSensorRFID() {
@@ -99,6 +100,9 @@ void readSensorRFID() {
       message[UID_BYTE1] = mfrc522.uid.uidByte[2];
       message[UID_BYTE0] = mfrc522.uid.uidByte[3];
 
+      SERIAL_DEBUG.println(F("The NUID tag is:"));
+      printHex(mfrc522.uid.uidByte, mfrc522.uid.size);
+      SERIAL_DEBUG.println();
 
       mfrc522.PICC_HaltA();
       // Stop encryption on PCD
@@ -165,3 +169,9 @@ void readServerCommands() {
   }
 }
 
+void printHex(uint8_t *buffer, uint8_t bufferSize) {
+  for (uint8_t i = 0; i < bufferSize; i++) {
+    SERIAL_DEBUG.print(buffer[i] < 0x10 ? " 0" : " ");
+    SERIAL_DEBUG.print(buffer[i], HEX);
+  }
+}
