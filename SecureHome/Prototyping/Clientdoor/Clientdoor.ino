@@ -1,6 +1,9 @@
 #include <ESP8266WiFi.h>
 #include <SPI.h>
 #include <MFRC522.h>
+/* WARNING change the source code of MFRC522 library to remove
+  Soft Reset part of the init code and replace it with a hard reset.
+*/
 
 #define RST_PIN  D1 // RST-PIN for RC522 - RFID - SPI - Modul GPIO5: 5 
 #define SS_PIN  D2 // SDA-PIN for RC522 - RFID - SPI - Modul GPIO4: 4
@@ -37,8 +40,6 @@ uint8_t message[MESSAGESIZE] = {'d', 'c', 0, 0, 0, 0, 0, 0, 0, 0};
 uint8_t state = TOCONNECT;
 WiFiClient clientRef;
 
-
-
 unsigned long previousMillis = 0;
 const long interval = 1000;
 
@@ -68,7 +69,7 @@ void setup() {
   SERIAL_DEBUG.println("SPI done ");
   SERIAL_DEBUG.println("Init RFID sensor ");
   mfrc522.PCD_Init();   // Init MFRC522
-  SERIAL_DEBUG.println("SPI done ");
+  SERIAL_DEBUG.println("Init RFID sensor done ");
 
   pinMode(LED_RFID, OUTPUT);
 
@@ -81,6 +82,7 @@ void setup() {
     SERIAL_DEBUG.print(".");
   }
   digitalWrite(LED_WIFI, HIGH);
+  clientRef.setNoDelay(true);
 
 }
 
@@ -91,6 +93,12 @@ void loop() {
 }
 
 void readSensorRFID() {
+  //SERIAL_DEBUG.println("Enter readSensorRFID()");
+  //SERIAL_DEBUG.println(millis());
+
+  
+  mfrc522.PCD_Init();   // Init MFRC522
+
   if (mfrc522.PICC_IsNewCardPresent()) {
     if (mfrc522.PICC_ReadCardSerial()) {
 
@@ -107,8 +115,12 @@ void readSensorRFID() {
       delay(500);
       digitalWrite(LED_RFID, LOW);
       delay(500);
+
+      digitalWrite(RST_PIN,LOW);
     }
   }
+  //SERIAL_DEBUG.println("Exit readSensorRFID()");
+  //SERIAL_DEBUG.println(millis());
 }
 void sendStatusToServer() {
   switch (state)
@@ -134,12 +146,34 @@ void sendStatusToServer() {
 
       unsigned long currentMillis = millis();
       if ((currentMillis - previousMillis >= interval)) {
+
         previousMillis = currentMillis;
         if (windowSensorState == HIGH) message[SENSORSTATE] = 'o';
         else message[SENSORSTATE] = 'c';
 
+
         if (clientRef.connected()) {
+
+          unsigned long millis1 = millis();
+          //SERIAL_DEBUG.print("Enter write: ");
+          //SERIAL_DEBUG.println(millis());
+
           clientRef.write((const uint8_t *)message, MESSAGESIZE);
+
+          unsigned long millis2 = millis();
+
+          SERIAL_DEBUG.print("write time: ");
+          SERIAL_DEBUG.println(millis2 - millis1);
+          if ((millis2 - millis1) > 2000) {
+            SERIAL_DEBUG.println("Server connection timeout");
+            clientRef.stop();
+            state = TOCONNECT;
+            digitalWrite(LED_CONNECTED, LOW);
+            SERIAL_DEBUG.println("Disconnected");
+          }
+
+
+          //SERIAL_DEBUG.println("Send data to server");
         }
         else {
           clientRef.stop();
@@ -148,12 +182,19 @@ void sendStatusToServer() {
           SERIAL_DEBUG.println("Disconnected");
 
         }
+
       }
+
+
+
+
       break;
   }
 }
 
 void readServerCommands() {
+  //SERIAL_DEBUG.println("Enter readServerCommands()");
+  //SERIAL_DEBUG.println(millis());
   if (clientRef.available()) {
     while (clientRef.available())
       if (clientRef.read() == 'o') {
@@ -163,5 +204,7 @@ void readServerCommands() {
         digitalWrite(ACTUADOR, LOW);
       }
   }
+  //SERIAL_DEBUG.println("Exit readServerCommands()");
+  //SERIAL_DEBUG.println(millis());
 }
 
