@@ -25,8 +25,10 @@
 const char* ssid = "TP-LINK_DE02";
 const char* password = "upb2000qwerty";
 const char* host = "maker.ifttt.com";
-const char* privateKey = "lF4E6sL5HJUPyuY1wrypc22PWQvAVWYv9AkD0115jsA";
+//const char* privateKey = "lF4E6sL5HJUPyuY1wrypc22PWQvAVWYv9AkD0115jsA";
 const char* event = "correo";
+const char* privateKey = "lmQacBAEY1SyfUdlXxS378N4bwSYOPGHsEYxp7MVjCT";
+
 
 byte mac[6];
 WiFiServer server(3000);
@@ -113,14 +115,14 @@ void processDataFromClients() {
     if (serverClients[i] && serverClients[i].connected()) {
       if (serverClients[i].available() == MESSAGESIZE) {
         while (serverClients[i].available()) {
-
           for (uint8_t j  = 0; j < MESSAGESIZE; j++) {
             message[j] = serverClients[i].read();
           }
-
+          Serial.println(".");
+          /*
           Serial.print("SENSOR TYPE: ");
-          Serial.write(message[SENSORTYPE]);//
-          Serial.println(); //
+          Serial.write(message[SENSORTYPE]);
+          Serial.println();
           Serial.print("SENSOR STATE: ");
           Serial.write(message[SENSORSTATE]);
           Serial.println();
@@ -129,6 +131,7 @@ void processDataFromClients() {
           Serial.print(message[UID_BYTE2], HEX);
           Serial.print(message[UID_BYTE1], HEX);
           Serial.println(message[UID_BYTE0], HEX);
+          */
 
           switch (alarmState) {
             case ALARM_DISARMED:
@@ -136,32 +139,28 @@ void processDataFromClients() {
                 digitalWrite(LED_ALARM, HIGH);
                 // TODO: Send email to user
                 // sendEmailAlarmArmed();
+                serverClients[i].write('o'); // inverted logic o: secure c: unsecure
                 alarmState = ALARM_ARMED;
+                Serial.println("Door is secured");
+                IFTTTCont = 0;
               }
               break;
             case ALARM_ARMED:
-              if ((message[SENSORSTATE] == 'o') {
+              if ((message[SENSORSTATE] == 'o')&& (IFTTTCont == 0)) {
                 sendAlert();
-                digitalWrite(LED_ALARM, LOW);
-                alarmState = ALARM_ARMED;    
+                IFTTTCont = 1;
+                Serial.println("Alarm is triggered");
               }
-
-            break;
-        }
-
-
-        if ((message[SENSORSTATE] == 'o') && (IFTTTCont == 0)) {
-            
-            IFTTTCont = 1;
+              if (verifyKey() == 1) {
+                serverClients[i].write('c');
+                digitalWrite(LED_ALARM, LOW);
+                alarmState = ALARM_DISARMED;
+                Serial.println("Door is unsecured");
+              }
+              break;
           }
-
-          if (message[SENSORSTATE] == 'c') {
-            IFTTTCont = 0;
-          }
-
-          // ACK to message sent by clients
+          // ACK message to client
           serverClients[i].write('l');
-
         }
       }
     }
@@ -242,7 +241,7 @@ uint8_t verifyKey() {
 
   uint8_t keyApproved = 0;
 
-  for (uint8_t key = 0; key < APPROVEKEYSNUMBER; key++) {
+  for (uint8_t key = 0; key < APPROVEDKEYS; key++) {
     if (!(message[UID_BYTE3] == approvedKeys[key][0])) {
       continue;
     }
