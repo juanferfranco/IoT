@@ -19,6 +19,7 @@
   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 */
 #include <ESP8266WiFi.h>
+#include <ESP8266mDNS.h>
 
 //how many clients should be able to telnet to this ESP8266
 #define MAX_SRV_CLIENTS 3
@@ -102,13 +103,21 @@ void setup() {
     Serial.print(':');
   }
   Serial.println();
+
+  // Start mDNS responder
+  if (!MDNS.begin("espServer")) {
+    Serial.println("Error setting up MDNS responder!");
+  }
+  Serial.println("mDNS responder started");
+  MDNS.addService("espServer", "tcp", 3000); // Announce esp tcp service on port 8080
+
 }
 
 void loop() {
+  MDNS.update();
   checkNewClients();
   processDataFromClients();
   sendDataToClients();
-
 }
 
 void processDataFromClients() {
@@ -123,17 +132,17 @@ void processDataFromClients() {
           Serial.println();
 
           /*
-          Serial.print("SENSOR TYPE: ");
-          Serial.write(message[SENSORTYPE]);
-          Serial.println();
-          Serial.print("SENSOR STATE: ");
-          Serial.write(message[SENSORSTATE]);
-          Serial.println();
-          Serial.print("UID: ");
-          Serial.print(message[UID_BYTE3], HEX);
-          Serial.print(message[UID_BYTE2], HEX);
-          Serial.print(message[UID_BYTE1], HEX);
-          Serial.println(message[UID_BYTE0], HEX);
+            Serial.print("SENSOR TYPE: ");
+            Serial.write(message[SENSORTYPE]);
+            Serial.println();
+            Serial.print("SENSOR STATE: ");
+            Serial.write(message[SENSORSTATE]);
+            Serial.println();
+            Serial.print("UID: ");
+            Serial.print(message[UID_BYTE3], HEX);
+            Serial.print(message[UID_BYTE2], HEX);
+            Serial.print(message[UID_BYTE1], HEX);
+            Serial.println(message[UID_BYTE0], HEX);
           */
 
           switch (alarmState) {
@@ -148,7 +157,7 @@ void processDataFromClients() {
               }
               break;
             case ALARM_ARMED:
-              if ((message[SENSORSTATE] == 'o')&& (IFTTTCont == 0)) {
+              if ((message[SENSORSTATE] == 'o') && (IFTTTCont == 0)) {
                 sendAlert(evAlarmTriggered);
                 IFTTTCont = 1;
                 Serial.println("Alarm is triggered");

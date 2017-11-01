@@ -1,15 +1,10 @@
 #include <ESP8266WiFi.h>
-#include <SPI.h>
-#include <MFRC522.h>
-
-#define RST_PIN  D1 // RST-PIN for RC522 - RFID - SPI - Modul GPIO5: 5 
-#define SS_PIN  D2 // SDA-PIN for RC522 - RFID - SPI - Modul GPIO4: 4
-#define LED_RFID D8 // LED RFID read 
+#include <ESP8266mDNS.h>
 
 const char* ssid = "TP-LINK_DE02";
 const char* password = "upb2000qwerty";
-const uint16_t port = 3000;
-const char * host = "192.168.0.104"; // ip or dns
+uint16_t port = 3000;
+IPAddress host(192,168,0,104); // ip or dns
 
 #define MESSAGESIZE 10
 #define SENSORTYPE 0
@@ -23,13 +18,11 @@ const char * host = "192.168.0.104"; // ip or dns
 #define UID_BYTE1 8
 #define UID_BYTE0 9
 
-uint8_t message[MESSAGESIZE] = {'d', 'c', 0, 0, 0, 0, 0, 0, 0, 0};
+uint8_t message[MESSAGESIZE] = {'w', 'c', 0, 0, 0, 0, 0, 0, 0, 0};
 
-#define LED_WIFI D9 //D9
-#define LED_CONNECTED D10 // D10
-#define DOORSENSORPORT D0
-#define ACTUADOR D3
-
+#define LED_WIFI D0
+#define LED_CONNECTED D1
+#define WINDOWSENSORPORT D2
 
 #define TOCONNECT 0
 #define CONNECTED 1
@@ -39,36 +32,22 @@ uint8_t message[MESSAGESIZE] = {'d', 'c', 0, 0, 0, 0, 0, 0, 0, 0};
 uint8_t state = TOCONNECT;
 WiFiClient clientRef;
 
+
+
 unsigned long previousMillis = 0;
 const long interval = 1000;
-
-MFRC522 mfrc522(SS_PIN, RST_PIN); // Create MFRC522 instance
 
 
 void setup() {
   pinMode(LED_WIFI, OUTPUT);
   pinMode(LED_CONNECTED, OUTPUT);
-  pinMode(DOORSENSORPORT, INPUT);
-  pinMode(ACTUADOR, OUTPUT);
-  digitalWrite(ACTUADOR, LOW);
-
+  pinMode(WINDOWSENSORPORT, INPUT);
   digitalWrite(LED_WIFI, LOW);
   digitalWrite(LED_CONNECTED, LOW);
   Serial.begin(115200); // initialize serial communication
-
-  Serial.println();
-  Serial.println("Init SPI ");
-  SPI.begin();      // Init SPI bus
-  Serial.println("SPI done ");
-  Serial.println("Init RFID sensor ");
-  mfrc522.PCD_Init();   // Init MFRC522
-  Serial.println("SPI done ");
-
-  pinMode(LED_RFID, OUTPUT);
-
-
   Serial.print("Connecting to ");
   Serial.println(ssid);
+
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
@@ -76,37 +55,44 @@ void setup() {
   }
   digitalWrite(LED_WIFI, HIGH);
 
+  // Start mDNS query
+  if (!MDNS.begin("espWindow")) {
+    Serial.println("Error setting up MDNS responder!");
+  }
+  Serial.println("mDNS responder started");
+  MDNS.addService("espWindow", "tcp", 3000); // Announce esp tcp service on port 8080
+
+  Serial.println("Sending mDNS query");
+  int n = MDNS.queryService("espServer", "tcp"); // Send out query for esp tcp services
+  Serial.println("mDNS query done");
+
+  while (n == 0) {
+    Serial.println("no services found");
+    delay(2000);
+  }
+  Serial.print("Host: ");
+  Serial.print(MDNS.hostname(0));
+  Serial.print(" (");
+  Serial.print(MDNS.IP(0));
+  Serial.print(":");
+  Serial.print(MDNS.port(0));
+  Serial.println(")");
+  Serial.println();
+
+  host = MDNS.IP(0);
+  port = MDNS.port(0);
 }
+
 
 void loop() {
   unsigned long currentMillis;
   uint8_t windowSensorState;
-  uint8_t dataFromServer;
 
-  if (mfrc522.PICC_IsNewCardPresent()) {
-    if (mfrc522.PICC_ReadCardSerial()) {
-
-      message[UID_BYTE3] = mfrc522.uid.uidByte[0];
-      message[UID_BYTE2] = mfrc522.uid.uidByte[1];
-      message[UID_BYTE1] = mfrc522.uid.uidByte[2];
-      message[UID_BYTE0] = mfrc522.uid.uidByte[3];
-
-
-      mfrc522.PICC_HaltA();
-      // Stop encryption on PCD
-      mfrc522.PCD_StopCrypto1();
-      digitalWrite(LED_RFID, HIGH);
-      delay(500);
-      digitalWrite(LED_RFID, LOW);
-      delay(500);
-    }
-  }
-
+  MDNS.update();
 
   switch (state)
   {
     case TOCONNECT:
-      Serial.println("Trying Server connection");
       if (!clientRef.connect(host, port)) {
         Serial.println("connection failed");
         Serial.println("wait 5 sec...");
@@ -121,14 +107,15 @@ void loop() {
 
     case CONNECTED:
 
-      windowSensorState = digitalRead(DOORSENSORPORT);
-      //uint8_t windowSensorState = LOW;
-
+      windowSensorState = digitalRead(WINDOWSENSORPORT);
       currentMillis = millis();
-      if ((currentMillis - previousMillis >= interval)) {
+
+      if ((currentMillis - previousMillis) >= interval) {
         previousMillis = currentMillis;
         if (windowSensorState == HIGH) message[SENSORSTATE] = 'o';
         else message[SENSORSTATE] = 'c';
+
+
         if (clientRef.connected()) {
           clientRef.write((const uint8_t *)message, MESSAGESIZE);
         }
@@ -137,8 +124,12 @@ void loop() {
           state = TOCONNECT;
           digitalWrite(LED_CONNECTED, LOW);
         }
+
+
         state = CONFIRMATION;
         previousMillis = millis();
+
+
       }
       break;
 
@@ -153,20 +144,11 @@ void loop() {
       else {
 
         if (clientRef.available()) {
-          Serial.println("SERVER");
-          dataFromServer = clientRef.read();
-          state = CONNECTED;
-          previousMillis = millis();
-          message[UID_BYTE3] = 0;
-          message[UID_BYTE2] = 0;
-          message[UID_BYTE1] = 0;
-          message[UID_BYTE0] = 0;
 
-          if ( dataFromServer == 'o') {
-            digitalWrite(ACTUADOR, HIGH);
-          }
-          if ( dataFromServer == 'c') {
-            digitalWrite(ACTUADOR, LOW);
+          Serial.println("SERVER");
+          if (clientRef.read() == 'l') {
+            state = CONNECTED;
+            previousMillis = millis();
           }
         }
       }
