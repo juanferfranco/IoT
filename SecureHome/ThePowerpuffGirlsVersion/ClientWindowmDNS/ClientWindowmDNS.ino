@@ -4,7 +4,7 @@
 const char* ssid = "TP-LINK_DE02";
 const char* password = "upb2000qwerty";
 uint16_t port = 3000;
-IPAddress host(192,168,0,104); // ip or dns
+IPAddress host(192, 168, 0, 104); // ip or dns
 
 #define MESSAGESIZE 10
 #define SENSORTYPE 0
@@ -39,6 +39,7 @@ const long interval = 1000;
 
 
 void setup() {
+  
   pinMode(LED_WIFI, OUTPUT);
   pinMode(LED_CONNECTED, OUTPUT);
   pinMode(WINDOWSENSORPORT, INPUT);
@@ -62,14 +63,15 @@ void setup() {
   Serial.println("mDNS responder started");
   MDNS.addService("espWindow", "tcp", 3000); // Announce esp tcp service on port 8080
 
-  Serial.println("Sending mDNS query");
-  int n = MDNS.queryService("espServer", "tcp"); // Send out query for esp tcp services
-  Serial.println("mDNS query done");
-
+  int n = 0;
   while (n == 0) {
+    Serial.println("Sending mDNS query");
+    n = MDNS.queryService("espServer", "tcp"); // Send out query for esp tcp services
+    Serial.println("mDNS query done");
     Serial.println("no services found");
     delay(2000);
   }
+
   Serial.print("Host: ");
   Serial.print(MDNS.hostname(0));
   Serial.print(" (");
