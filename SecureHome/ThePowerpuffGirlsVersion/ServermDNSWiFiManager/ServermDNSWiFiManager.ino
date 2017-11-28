@@ -123,6 +123,8 @@ void processDataFromClients() {
             message[j] = serverClients[i].read();
           }
           Serial.write(message[SENSORTYPE]);
+          Serial.write(':');
+          Serial.write(message[SENSORSTATE]);
           Serial.println();
 
           /*
